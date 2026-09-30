@@ -1,0 +1,28 @@
+name: Deploy hq-face-api
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to api-ia
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: |
+            cd /var/www/hq-face-api
+
+            git fetch origin
+            git reset --hard origin/main
+
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh
