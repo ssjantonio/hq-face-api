@@ -1,0 +1,9 @@
+default_model: opencv_sface_2021dec
+
+models:
+  opencv_sface_2021dec:
+    engine: opencv_sface
+    detector: /app/models/opencv_sface_2021dec/face_detection_yunet_2023mar.onnx
+    recognizer: /app/models/opencv_sface_2021dec/face_recognition_sface_2021dec.onnx
+    embedding_dimensions: 128
+    detection_threshold: 0.90
