@@ -58,9 +58,17 @@ class OpenCvSFaceEngine(FaceEngine):
 
         embedding /= norm
 
+        confidence = float(face[-1])
+
         return {
             "modelCode": self.model_code,
             "embeddingDimensions": int(len(embedding)),
             "embedding": embedding.tolist(),
-            "qualityScore": float(face[-1]),
+            "qualityScore": confidence,
+            "boundingBox": {
+                "x": int(round(float(face[0]))),
+                "y": int(round(float(face[1]))),
+                "width": int(round(float(face[2]))),
+                "height": int(round(float(face[3]))),
+            },
         }
