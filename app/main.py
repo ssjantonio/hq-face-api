@@ -1,8 +1,55 @@
+import logging
+import sys
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from app.registry import ModelRegistry
+
+
+logger = logging.getLogger("hq-face-api.access")
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    )
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
+class RequestTimingMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        start = time.perf_counter()
+        status_code = 500
+
+        async def send_wrapper(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            if scope["path"] == "/health":
+                return
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.info(
+                "%s %s %s %.1fms",
+                scope["method"],
+                scope["path"],
+                status_code,
+                elapsed_ms,
+            )
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,6 +62,7 @@ app = FastAPI(
     title="Hidraquim Face API",
     version="1.0.0",
 )
+app.add_middleware(RequestTimingMiddleware)
 
 
 @app.get("/health")
