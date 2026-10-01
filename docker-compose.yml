@@ -4,6 +4,10 @@ services:
       context: .
     container_name: hidraquim-face-api
     restart: unless-stopped
+    environment:
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - ./uploads:/app/uploads
     ports:
       - "127.0.0.1:8090:8090"
     healthcheck:

@@ -1,6 +1,9 @@
 import logging
+import os
 import sys
 import time
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -53,6 +56,29 @@ class RequestTimingMiddleware:
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOADS_DIR = Path(os.environ.get("UPLOADS_DIR", BASE_DIR / "uploads"))
+
+
+def image_extension(content: bytes) -> str:
+    if content.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if len(content) >= 12 and content.startswith(b"RIFF") and content[8:12] == b"WEBP":
+        return ".webp"
+    if content[:6] in (b"GIF87a", b"GIF89a"):
+        return ".gif"
+    return ".bin"
+
+
+def save_received_image(content: bytes) -> Path:
+    now = datetime.now()
+    day_dir = UPLOADS_DIR / now.strftime("%Y-%m-%d")
+    day_dir.mkdir(parents=True, exist_ok=True)
+    path = day_dir / f"{now.strftime('%H%M%S')}-{uuid.uuid4().hex[:8]}{image_extension(content)}"
+    path.write_bytes(content)
+    return path
+
 
 registry = ModelRegistry(
     str(BASE_DIR / "config" / "models.yaml")
@@ -97,6 +123,12 @@ async def embedding(
                 "message": "La imagen está vacía.",
             },
         )
+
+    try:
+        saved_path = save_received_image(content)
+        logger.info("imagen guardada %s (%s bytes)", saved_path, len(content))
+    except OSError:
+        logger.exception("no se pudo guardar la imagen recibida")
 
     try:
         engine = registry.get(modelCode)
